@@ -307,6 +307,9 @@ namespace Hearthstone_Deck_Tracker
 		[DefaultValue(0.45)]
 		public double ExportStandardSetButtonY = 0.45;
 
+		[DefaultValue(0.5)]
+		public double ExportWildSetButtonY = 0.5;
+
 		[DefaultValue(0.04)]
 		public double ExportCard1X = 0.04;
 

@@ -38,7 +38,7 @@ namespace Hearthstone_Deck_Tracker.Exporting
 
 				await ClearDeck(info);
 				await SetDeckName(deck, info);
-				await ClearFilters(info);
+				await ClearFilters(deck.StandardViable, 1info);
 				var lostFocus = await CreateDeck(deck, info);
 				if(lostFocus)
 					return;

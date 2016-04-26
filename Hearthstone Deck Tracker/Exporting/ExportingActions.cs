@@ -174,12 +174,12 @@ namespace Hearthstone_Deck_Tracker.Exporting
 			return false;
 		}
 
-		public static async Task ClearFilters(ExportingInfo info)
+		public static async Task ClearFilters(bool standard, ExportingInfo info)
 		{
 			if(!Config.Instance.EnableExportAutoFilter)
 				return;
 			await ClearManaFilter(info);
-			await ClearSetsFilter(info);
+			await ClearSetsFilter(standard, info);
 		}
 
 		public static async Task ClearManaFilter(ExportingInfo info)
@@ -203,7 +203,7 @@ namespace Hearthstone_Deck_Tracker.Exporting
 			}
 		}
 
-		public static async Task ClearSetsFilter(ExportingInfo info)
+		public static async Task ClearSetsFilter(bool standard, ExportingInfo info)
 		{
 			Log.Info("Clearing set filter...");
 			// Then ensure "All Sets" is selected
@@ -214,11 +214,9 @@ namespace Hearthstone_Deck_Tracker.Exporting
 			await ClickOnPoint(info.HsHandle, setsPoint);
 			await Task.Delay(100);
 			// select "All Sets"
-			await
-				ClickOnPoint(info.HsHandle,
-				                          new Point(
-					                          (int)Helper.GetScaledXPos(Config.Instance.ExportAllSetsButtonX, info.HsRect.Width, info.Ratio),
-					                          (int)(Config.Instance.ExportStandardSetButtonY * info.HsRect.Height)));
+			var y = standard ? Config.Instance.ExportStandardSetButtonY : Config.Instance.ExportWildSetButtonY;
+			await ClickOnPoint(info.HsHandle, new Point((int)Helper.GetScaledXPos(Config.Instance.ExportAllSetsButtonX, info.HsRect.Width, info.Ratio),
+														(int)(y * info.HsRect.Height)));
 			await Task.Delay(100);
 			// close sets menu
 			await ClickOnPoint(info.HsHandle, setsPoint);
