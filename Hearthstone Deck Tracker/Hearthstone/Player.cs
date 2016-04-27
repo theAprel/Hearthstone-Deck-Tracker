@@ -200,14 +200,11 @@ namespace Hearthstone_Deck_Tracker.Hearthstone
 
 		public void Draw(Entity entity, int turn)
 		{
-			if(IsLocalPlayer)
-				UpdateKnownEntitesInDeck(entity.CardId);
+			UpdateKnownEntitesInDeck(entity.CardId);
 			if(!IsLocalPlayer)
 			{
 				if(_game.OpponentEntity?.GetTag(GameTag.MULLIGAN_STATE) == (int)HearthDb.Enums.Mulligan.DEALING)
 					entity.Info.Mulliganed = true;
-				else
-					entity.Info.Hidden = true;
 			}
 			entity.Info.Turn = turn;
 			Log(entity);
