@@ -233,7 +233,6 @@ namespace Hearthstone_Deck_Tracker.Hearthstone
 					SpellsPlayedCount++;
 					break;
 			}
-			entity.Info.Hidden = false;
 			entity.Info.Turn = turn;
 			Log(entity);
 		}
