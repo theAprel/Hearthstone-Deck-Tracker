@@ -266,7 +266,14 @@ namespace Hearthstone_Deck_Tracker.Hearthstone.Entities
 		public bool Created { get; set; }
 		public bool HasOutstandingTagChanges { get; set; }
 		public int OriginalController { get; set; }
-		public bool Hidden { get; set; }
+		public bool Hidden
+		{
+			get
+			{
+				return false;
+			}
+			set { }
+		}
 		public int CostReduction { get; set; }
 		public Zone? OriginalZone { get; set; }
 		public bool CreatedInDeck => OriginalZone == Zone.DECK;
