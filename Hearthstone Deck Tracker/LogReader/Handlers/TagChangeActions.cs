@@ -291,7 +291,7 @@ namespace Hearthstone_Deck_Tracker.LogReader.Handlers
 					break;
 				case Zone.INVALID:
 					var maxId = GetMaxHeroPowerId(game);
-					if(!gameState.SetupDone && id <= maxId)
+					if(!gameState.SetupDone && (id <= maxId || game.GameEntity?.GetTag(STEP) == (int)Step.INVALID) && entity.GetTag(ZONE_POSITION) < 5)
 					{
 						entity.Info.OriginalZone = DECK;
 						SimulateZoneChangesFromDeck(gameState, id, game, value, entity.CardId, maxId);
@@ -387,6 +387,18 @@ namespace Hearthstone_Deck_Tracker.LogReader.Handlers
 					{
 						gameState.GameHandler.HandleOpponentGet(game.Entities[id], gameState.GetTurnNumber(), id);
 						gameState.ProposeKeyPoint(Obtain, id, ActivePlayer.Opponent);
+					}
+					break;
+				case Zone.SECRET:
+					if(controller == game.Player.Id)
+					{
+						gameState.GameHandler.HandlePlayerSecretPlayed(game.Entities[id], cardId, gameState.GetTurnNumber(), (Zone)prevValue);
+						gameState.ProposeKeyPoint(SecretPlayed, id, ActivePlayer.Player);
+					}
+					else if(controller == game.Opponent.Id)
+					{
+						gameState.GameHandler.HandleOpponentSecretPlayed(game.Entities[id], cardId, -1, gameState.GetTurnNumber(), (Zone)prevValue, id);
+						gameState.ProposeKeyPoint(SecretPlayed, id, ActivePlayer.Opponent);
 					}
 					break;
 				default:
@@ -507,13 +519,13 @@ namespace Hearthstone_Deck_Tracker.LogReader.Handlers
 				case Zone.SECRET:
 					if(controller == game.Player.Id)
 					{
-						gameState.GameHandler.HandlePlayerSecretPlayed(game.Entities[id], cardId, gameState.GetTurnNumber(), false);
+						gameState.GameHandler.HandlePlayerSecretPlayed(game.Entities[id], cardId, gameState.GetTurnNumber(), (Zone)prevValue);
 						gameState.ProposeKeyPoint(SecretPlayed, id, ActivePlayer.Player);
 					}
 					else if(controller == game.Opponent.Id)
 					{
 						gameState.GameHandler.HandleOpponentSecretPlayed(game.Entities[id], cardId, game.Entities[id].GetTag(ZONE_POSITION),
-																		 gameState.GetTurnNumber(), false, id);
+																		 gameState.GetTurnNumber(), (Zone)prevValue, id);
 						gameState.ProposeKeyPoint(SecretPlayed, id, ActivePlayer.Opponent);
 					}
 					break;
@@ -606,12 +618,12 @@ namespace Hearthstone_Deck_Tracker.LogReader.Handlers
 				case Zone.SECRET:
 					if(controller == game.Player.Id)
 					{
-						gameState.GameHandler.HandlePlayerSecretPlayed(game.Entities[id], cardId, gameState.GetTurnNumber(), true);
+						gameState.GameHandler.HandlePlayerSecretPlayed(game.Entities[id], cardId, gameState.GetTurnNumber(), (Zone)prevValue);
 						gameState.ProposeKeyPoint(SecretPlayed, id, ActivePlayer.Player);
 					}
 					else if(controller == game.Opponent.Id)
 					{
-						gameState.GameHandler.HandleOpponentSecretPlayed(game.Entities[id], cardId, -1, gameState.GetTurnNumber(), true, id);
+						gameState.GameHandler.HandleOpponentSecretPlayed(game.Entities[id], cardId, -1, gameState.GetTurnNumber(), (Zone)prevValue, id);
 						gameState.ProposeKeyPoint(SecretPlayed, id, ActivePlayer.Player);
 					}
 					break;
