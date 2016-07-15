@@ -58,9 +58,16 @@ namespace Hearthstone_Deck_Tracker.Controls.Stats.Constructed
 		{
 			if(SelectedGame == null)
 				return;
-			Core.MainWindow.DeckFlyout.SetDeck(SelectedGame.OpponentCards);
-			Core.MainWindow.FlyoutDeck.Header = "Opponent";
-			Core.MainWindow.FlyoutDeck.IsOpen = true;
+			if(Config.Instance.StatsInWindow)
+			{
+				Core.Windows.StatsWindow.DeckFlyout.SetDeck(SelectedGame.OpponentCards);
+				Core.Windows.StatsWindow.FlyoutDeck.IsOpen = true;
+			}
+			else
+			{
+				Core.MainWindow.DeckFlyout.SetDeck(SelectedGame.OpponentCards);
+				Core.MainWindow.FlyoutDeck.IsOpen = true;
+			}
 		}
 
 		private void ButtonShowReplay_OnClick(object sender, RoutedEventArgs e)
@@ -166,6 +173,14 @@ namespace Hearthstone_Deck_Tracker.Controls.Stats.Constructed
 			var dialog = Helper.GetParentWindow(Core.StatsOverview)?.ShowAddGameDialog(deck);
 			if(dialog != null && await dialog)
 				ConstructedStats.Instance.UpdateGames();
+		}
+
+		private void ButtonSelectDeck_OnClick(object sender, RoutedEventArgs e)
+		{
+			var deck = DeckList.Instance.Decks.FirstOrDefault(x => x.DeckId == SelectedGame.DeckId);
+			if(deck?.Equals(DeckList.Instance.ActiveDeck) ?? true)
+				return;
+			Core.MainWindow.SelectDeck(deck, true);
 		}
 	}
 }

@@ -46,18 +46,18 @@ namespace Hearthstone_Deck_Tracker.Stats.CompiledStats
 
 		public BitmapImage ClassImage => ImageCache.GetClassIcon(Class ?? "");
 
-		public TimeSpan TotalDuration => TimeSpan.FromMinutes(_games?.Sum(x => (x.EndTime - x.StartTime).TotalMinutes) ?? 0);
+		public TimeSpan TotalDuration => TimeSpan.FromMinutes(_games?.Sum(x => (x.EndTime - x.StartTime).Minutes) ?? 0);
 
-		public TimeSpan AverageDuration => TimeSpan.FromMinutes(_games?.Average(x => (x.EndTime - x.StartTime).TotalMinutes) ?? 0);
+		public TimeSpan AverageDuration => TimeSpan.FromMinutes(_games?.Where(x => x.EndTime > x.StartTime).Select(x => (x.EndTime - x.StartTime).Minutes).DefaultIfEmpty(0).Average() ?? 0);
 
-		public double AverageTurns => Math.Round(_games?.Average(x => x.Turns) ?? 0, 1);
+		public double AverageTurns => Math.Round(_games?.Where(x => x.Turns > 0).Select(x => x.Turns).DefaultIfEmpty(0).Average() ?? 0, 1);
 
 		public SolidColorBrush WinRateTextBrush
 		{
 			get
 			{
 				if(double.IsNaN(WinRate) || !Config.Instance.ArenaStatsTextColoring)
-					return new SolidColorBrush(Config.Instance.StatsInWindow ? Colors.Black : Colors.White);
+					return new SolidColorBrush(Config.Instance.StatsInWindow && Config.Instance.AppTheme != MetroTheme.BaseDark ? Colors.Black : Colors.White);
 				return new SolidColorBrush(WinRate >= 0.5 ? Colors.Green : Colors.Red);
 			}
 		}

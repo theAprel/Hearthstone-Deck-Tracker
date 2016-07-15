@@ -95,7 +95,7 @@ namespace Hearthstone_Deck_Tracker.Windows
 						continue;
 					if(selectedSet != "ALL" && !string.Equals(selectedSet, card.Set, StringComparison.InvariantCultureIgnoreCase))
 						continue;
-					if(!(CheckBoxIncludeWild.IsChecked ?? true) && Helper.WildOnlySets.Contains(card.Set))
+					if(!_newDeck.IsArenaDeck && !_newDeck.IsBrawlDeck && !(CheckBoxIncludeWild.IsChecked ?? true) && Helper.WildOnlySets.Contains(card.Set))
 						continue;
 					switch(selectedNeutral)
 					{
@@ -179,8 +179,8 @@ namespace Hearthstone_Deck_Tracker.Windows
 				TagControlEdit.SetSelectedTags(new List<string>());
 				if(deckName != oldDeckName)
 				{
-					var statsEntry = DeckStatsList.Instance.DeckStats.FirstOrDefault(ds => ds.BelongsToDeck(_newDeck));
-					if(statsEntry != null)
+					DeckStats statsEntry;
+					if(DeckStatsList.Instance.DeckStats.TryGetValue(_newDeck.DeckId, out statsEntry))
 					{
 						if(overwrite)
 						{
@@ -191,11 +191,11 @@ namespace Hearthstone_Deck_Tracker.Windows
 						}
 						else
 						{
-							var newStatsEntry = DeckStatsList.Instance.DeckStats.FirstOrDefault(ds => ds.BelongsToDeck(_newDeck));
-							if(newStatsEntry == null)
+							DeckStats newStatsEntry;
+							if(DeckStatsList.Instance.DeckStats.TryGetValue(_newDeck.DeckId, out newStatsEntry))
 							{
 								newStatsEntry = new DeckStats(_newDeck);
-								DeckStatsList.Instance.DeckStats.Add(newStatsEntry);
+								DeckStatsList.Instance.DeckStats.TryAdd(_newDeck.DeckId, newStatsEntry);
 							}
 							foreach(var game in statsEntry.Games)
 								newStatsEntry.AddGameResult(game.CloneWithNewId());
@@ -304,15 +304,7 @@ namespace Hearthstone_Deck_Tracker.Windows
 			UpdateExpansionIcons();
 		}
 
-		private void UpdateExpansionIcons()
-		{
-			RectIconOg.Visibility = _newDeck?.ContainsSet("Whispers of the Old Gods") ?? false ? Visible : Collapsed;
-			RectIconLoe.Visibility = _newDeck?.ContainsSet("League of Explorers") ?? false ? Visible : Collapsed;
-			RectIconTgt.Visibility = _newDeck?.ContainsSet("The Grand Tournament") ?? false ? Visible : Collapsed;
-			RectIconBrm.Visibility = _newDeck?.ContainsSet("Blackrock Mountain") ?? false ? Visible : Collapsed;
-			RectIconGvg.Visibility = _newDeck?.ContainsSet("Goblins vs Gnomes") ?? false ? Visible : Collapsed;
-			RectIconNaxx.Visibility = _newDeck?.ContainsSet("Curse of Naxxramas") ?? false ? Visible : Collapsed;
-		}
+		private void UpdateExpansionIcons() => SetIcons.Update(_newDeck);
 
 		private void UpdateCardCount()
 		{
@@ -345,6 +337,7 @@ namespace Hearthstone_Deck_Tracker.Windows
 			Helper.SortCardCollection(ListViewDeck.ItemsSource, false);
 			TextBoxDeckName.Text = _newDeck.Name;
 			BorderConstructedCardLimits.Visibility = _newDeck.IsArenaDeck ? Collapsed : Visible;
+			CheckBoxIncludeWild.Visibility = _newDeck.IsBrawlDeck ? Collapsed : Visible;
 			CheckBoxConstructedCardLimits.IsChecked = true;
 			UpdateDeckHistoryPanel(deck, !editing);
 			UpdateDbListView();
@@ -355,19 +348,13 @@ namespace Hearthstone_Deck_Tracker.Windows
 
 		private void ExpandNewDeck()
 		{
-			const int widthWithHistoryPanel = 485;
 			const int widthWithoutHistoryPanel = 240;
 			if(GridNewDeck.Visibility != Visible)
 			{
 				GridNewDeck.Visibility = Visible;
 				MenuNewDeck.Visibility = Visible;
-				if(_newDeck != null && _newDeck.HasVersions)
-				{
-					PanelDeckHistory.Visibility = Visible;
-					GridNewDeck.Width = widthWithHistoryPanel;
-				}
-				else
-					GridNewDeck.Width = widthWithoutHistoryPanel;
+				ButtonVersionHistory.Visibility = _newDeck?.HasVersions ?? false ? Visible : Collapsed;
+				GridNewDeck.Width = widthWithoutHistoryPanel;
 				GridNewDeck.UpdateLayout();
 				Width += GridNewDeck.ActualWidth;
 				MinWidth += GridNewDeck.ActualWidth;
@@ -430,12 +417,14 @@ namespace Hearthstone_Deck_Tracker.Windows
 			PanelVersionComboBox.Visibility = selectedDeck != null && selectedDeck.HasVersions ? Visible : Collapsed;
 			PanelCardCount.Visibility = Collapsed;
 			BtnStartHearthstone.Visibility = Core.Game.IsRunning ? Collapsed : Visible;
+			TextBlockButtonVersionHistory.Text = "SHOW VERSION HISTORY";
 
 			if(MovedLeft.HasValue)
 			{
 				Left += MovedLeft.Value;
 				MovedLeft = null;
 			}
+			UpdateIntroLabelVisibility();
 		}
 
 		private void EnableMenuItems(bool enable)
@@ -444,6 +433,7 @@ namespace Hearthstone_Deck_Tracker.Windows
 			MenuItemEdit.IsEnabled = enable;
 			MenuItemExportIds.IsEnabled = enable;
 			MenuItemExportScreenshot.IsEnabled = enable;
+			MenuItemExportScreenshotWithInfo.IsEnabled = enable;
 			MenuItemExportToHs.IsEnabled = enable;
 			MenuItemExportXml.IsEnabled = enable;
 		}
@@ -486,17 +476,24 @@ namespace Hearthstone_Deck_Tracker.Windows
 		private async void CreateNewDeck(string hero)
 		{
 			_newDeck = new Deck {Class = hero};
-
-			var result =
-				await
-				this.ShowMessageAsync("Deck type?", "Please select a deck type.", MessageDialogStyle.AffirmativeAndNegativeAndSingleAuxiliary,
-				                      new MessageDialogs.Settings {AffirmativeButtonText = "constructed", NegativeButtonText = "arena run", FirstAuxiliaryButtonText = "cancel"});
-			if(result == MessageDialogResult.FirstAuxiliary)
+			var type = await this.ShowDeckTypeDialog();
+			if(type == null)
 				return;
-			if(result == MessageDialogResult.Negative)
+			if(type == DeckType.Arena)
 				_newDeck.IsArenaDeck = true;
+			else if(type == DeckType.Brawl)
+			{
+				if(!DeckList.Instance.AllTags.Contains("Brawl"))
+				{
+					DeckList.Instance.AllTags.Add("Brawl");
+					DeckList.Save();
+					Core.MainWindow?.ReloadTags();
+				}
+				_newDeck.Tags.Add("Brawl");
+			}
 
 			BorderConstructedCardLimits.Visibility = _newDeck.IsArenaDeck ? Collapsed : Visible;
+			CheckBoxIncludeWild.Visibility = _newDeck.IsBrawlDeck ? Collapsed : Visible;
 			CheckBoxConstructedCardLimits.IsChecked = true;
 			SelectDeck(null, false);
 			ExpandNewDeck();
@@ -692,5 +689,27 @@ namespace Hearthstone_Deck_Tracker.Windows
 		#endregion
 
 		private void CheckBoxIncludeWild_Changed(object sender, RoutedEventArgs e) => UpdateDbListView();
+
+		private void ButtonVersionHistory_OnClick(object sender, RoutedEventArgs e)
+		{
+			const int widthWithHistoryPanel = 485;
+			const int widthWithoutHistoryPanel = 240;
+			if(PanelDeckHistory.Visibility != Visible)
+			{
+				TextBlockButtonVersionHistory.Text = "HIDE VERSION HISTORY";
+				PanelDeckHistory.Visibility = Visible;
+				GridNewDeck.Width = widthWithHistoryPanel;
+				Width += widthWithHistoryPanel - widthWithoutHistoryPanel;
+				MinWidth += widthWithHistoryPanel - widthWithoutHistoryPanel;
+			}
+			else
+			{
+				TextBlockButtonVersionHistory.Text = "SHOW VERSION HISTORY";
+				PanelDeckHistory.Visibility = Collapsed;
+				GridNewDeck.Width = widthWithoutHistoryPanel;
+				MinWidth -= widthWithHistoryPanel - widthWithoutHistoryPanel;
+				Width -= widthWithHistoryPanel - widthWithoutHistoryPanel;
+			}
+		}
 	}
 }

@@ -12,18 +12,11 @@ namespace Hearthstone_Deck_Tracker.LogReader.Handlers
 {
 	public class NetHandler
 	{
-		private DateTime _lastGameStart;
 		public void Handle(LogLineItem logLine, IHsGameState gameState, IGame game)
 		{
 			var match = HsLogReaderConstants.ConnectionRegex.Match(logLine.Line);
 			if(match.Success)
 			{
-				if(_lastGameStart != logLine.Time)
-				{
-					game.MetaData.PropagateLegendRank();
-					_lastGameStart = logLine.Time;
-				}
-
 				game.MetaData.ServerAddress = match.Groups["address"].Value.Trim();
 				game.MetaData.ClientId = match.Groups["client"].Value.Trim();
 				game.MetaData.GameId = match.Groups["game"].Value.Trim();
@@ -39,8 +32,8 @@ namespace Hearthstone_Deck_Tracker.LogReader.Handlers
 				//just to make sure this still works in case the typo gets fixed
 				if(logLine.Line.ToLower().Contains("reconncting=true") || logLine.Line.ToLower().Contains("reconnecting=true"))
 					game.StoreGameState();
-				gameState.Reset();
-				gameState.GameHandler.HandleGameStart();
+				//gameState.Reset();
+				//gameState.GameHandler.HandleGameStart();
 			}
 		}
 	}

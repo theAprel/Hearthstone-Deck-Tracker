@@ -100,17 +100,17 @@ namespace Hearthstone_Deck_Tracker.Controls.Stats
 			var card = Database.GetCardFromName(cardName, true, false);
 			if(textBox == TextBoxCard1)
 			{
-				Reward.Cards[0] = card.Id != "UNKNOWN"
+				Reward.Cards[0] = card.Id != Database.UnknownCardId
 					                  ? new ArenaReward.CardReward {CardId = card.Id, Golden = CheckBoxGolden1.IsChecked == true} : null;
 			}
 			else if(textBox == TextBoxCard2)
 			{
-				Reward.Cards[1] = card.Id != "UNKNOWN"
+				Reward.Cards[1] = card.Id != Database.UnknownCardId
 					                  ? new ArenaReward.CardReward {CardId = card.Id, Golden = CheckBoxGolden2.IsChecked == true} : null;
 			}
 			else if(textBox == TextBoxCard3)
 			{
-				Reward.Cards[2] = card.Id != "UNKNOWN"
+				Reward.Cards[2] = card.Id != Database.UnknownCardId
 					                  ? new ArenaReward.CardReward {CardId = card.Id, Golden = CheckBoxGolden3.IsChecked == true} : null;
 			}
 		}
@@ -262,11 +262,26 @@ namespace Hearthstone_Deck_Tracker.Controls.Stats
 
 	public class ArenaReward
 	{
+		private CardReward[] _cards = new CardReward[3];
 		public int Gold { get; set; }
 		public int Dust { get; set; }
 		public ArenaPaymentMethod PaymentMethod { get; set; }
 
-		public CardReward[] Cards { get; set; } = new CardReward[3];
+		public CardReward[] Cards
+		{
+			get
+			{
+				if(_cards.Length != 3 || _cards.Any(x => x?.CardId == Database.UnknownCardId))
+				{
+					var valid = _cards.Where(x => x?.CardId != Database.UnknownCardId).ToArray();
+					_cards = new CardReward[3];
+					for(var i = 0; i < valid.Length; i++)
+						_cards[i] = valid[i];
+				}
+				return _cards;
+			}
+			set { _cards = value; }
+		}
 
 		public ArenaRewardPacks[] Packs { get; set; } = new ArenaRewardPacks[2];
 

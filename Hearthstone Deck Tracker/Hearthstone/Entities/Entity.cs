@@ -41,9 +41,7 @@ namespace Hearthstone_Deck_Tracker.Hearthstone.Entities
 		/// <Summary>
 		/// This is player entity, NOT the player hero.
 		/// </Summary>
-		public bool IsPlayer { get; set; }
-
-		internal void SetPlayer(bool isPlayer) => IsPlayer = isPlayer;
+		public bool IsPlayer => GetTag(GameTag.PLAYER_ID) == Core.Game.Player.Id;
 
 		[JsonIgnore]
 		public bool IsHero => GetTag(GameTag.CARDTYPE) == (int)CardType.HERO;
@@ -168,19 +166,21 @@ namespace Hearthstone_Deck_Tracker.Hearthstone.Entities
 		{
 			get
 			{
-				var effects = "";
+				var effects = string.Empty;
 				if(HasTag(GameTag.DIVINE_SHIELD))
 					effects += "Divine Shield";
 				if(HasTag(GameTag.TAUNT))
-					effects += (string.IsNullOrEmpty(effects) ? "" : "\n") + "Taunt";
+					effects += (string.IsNullOrEmpty(effects) ? string.Empty : Environment.NewLine) + "Taunt";
 				if(HasTag(GameTag.STEALTH))
-					effects += (string.IsNullOrEmpty(effects) ? "" : "\n") + "Stealth";
+					effects += (string.IsNullOrEmpty(effects) ? string.Empty : Environment.NewLine) + "Stealth";
 				if(HasTag(GameTag.SILENCED))
-					effects += (string.IsNullOrEmpty(effects) ? "" : "\n") + "Silenced";
+					effects += (string.IsNullOrEmpty(effects) ? string.Empty : Environment.NewLine) + "Silenced";
 				if(HasTag(GameTag.FROZEN))
-					effects += (string.IsNullOrEmpty(effects) ? "" : "\n") + "Frozen";
+					effects += (string.IsNullOrEmpty(effects) ? string.Empty : Environment.NewLine) + "Frozen";
 				if(HasTag(GameTag.ENRAGED))
-					effects += (string.IsNullOrEmpty(effects) ? "" : "\n") + "Enraged";
+					effects += (string.IsNullOrEmpty(effects) ? string.Empty : Environment.NewLine) + "Enraged";
+				if(HasTag(GameTag.WINDFURY))
+					effects += (string.IsNullOrEmpty(effects) ? string.Empty : Environment.NewLine) + "Windfury";
 				return effects;
 			}
 		}

@@ -60,8 +60,18 @@ namespace Hearthstone_Deck_Tracker.LogReader.Handlers
 					return () => StepChange(gameState, game);
 				case TURN:
 					return () => TurnChange(gameState, game);
+				case STATE:
+					return () => StateChange(value, gameState);
 			}
 			return null;
+		}
+
+		private void StateChange(int value, IHsGameState gameState)
+		{
+			if(value != (int)State.COMPLETE)
+				return;
+			gameState.GameHandler.HandleGameEnd();
+			gameState.GameEnded = true;
 		}
 
 		private void TurnChange(IHsGameState gameState, IGame game)
@@ -247,25 +257,22 @@ namespace Hearthstone_Deck_Tracker.LogReader.Handlers
 				case WON:
 					gameState.GameEndKeyPoint(true, id);
 					gameState.GameHandler.HandleWin();
-					gameState.GameHandler.HandleGameEnd();
-					gameState.GameEnded = true;
 					break;
 				case LOST:
 					gameState.GameEndKeyPoint(false, id);
 					gameState.GameHandler.HandleLoss();
-					gameState.GameHandler.HandleGameEnd();
-					gameState.GameEnded = true;
 					break;
 				case TIED:
 					gameState.GameEndKeyPoint(false, id);
 					gameState.GameHandler.HandleTied();
-					gameState.GameHandler.HandleGameEnd();
 					break;
 			}
 		}
 
 		private void ZoneChange(IHsGameState gameState, int id, IGame game, int value, int prevValue)
 		{
+			if(id <= 3)
+				return;
 			var entity = game.Entities[id];
 			if(!entity.Info.OriginalZone.HasValue)
 			{
@@ -291,7 +298,7 @@ namespace Hearthstone_Deck_Tracker.LogReader.Handlers
 					break;
 				case Zone.INVALID:
 					var maxId = GetMaxHeroPowerId(game);
-					if(!gameState.SetupDone && (id <= maxId || game.GameEntity?.GetTag(STEP) == (int)Step.INVALID) && entity.GetTag(ZONE_POSITION) < 5)
+					if(!gameState.SetupDone && (id <= maxId || game.GameEntity?.GetTag(STEP) == (int)Step.INVALID && entity.GetTag(ZONE_POSITION) < 5))
 					{
 						entity.Info.OriginalZone = DECK;
 						SimulateZoneChangesFromDeck(gameState, id, game, value, entity.CardId, maxId);

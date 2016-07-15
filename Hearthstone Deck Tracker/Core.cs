@@ -1,9 +1,11 @@
 ﻿#region
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
+using HearthMirror.Enums;
 using Hearthstone_Deck_Tracker.Controls.Stats;
 using Hearthstone_Deck_Tracker.Enums;
 using Hearthstone_Deck_Tracker.Controls.Information;
@@ -12,6 +14,7 @@ using Hearthstone_Deck_Tracker.HearthStats.API;
 using Hearthstone_Deck_Tracker.LogReader;
 using Hearthstone_Deck_Tracker.Plugins;
 using Hearthstone_Deck_Tracker.Utility;
+using Hearthstone_Deck_Tracker.Utility.Analytics;
 using Hearthstone_Deck_Tracker.Utility.Extensions;
 using Hearthstone_Deck_Tracker.Utility.HotKeys;
 using Hearthstone_Deck_Tracker.Utility.LogConfig;
@@ -44,7 +47,7 @@ namespace Hearthstone_Deck_Tracker
 
 		public static OverlayWindow Overlay => _overlay ?? (_overlay = new OverlayWindow(Game));
 
-		internal static bool UpdateOverlay { get; set; }
+		internal static bool UpdateOverlay { get; set; } = true;
 		internal static bool Update { get; set; }
 		internal static bool CanShutdown { get; set; }
 
@@ -120,19 +123,20 @@ namespace Hearthstone_Deck_Tracker
 
 			UpdateOverlayAsync();
 
-			if(Helper.HearthstoneDirExists)
+			if(Config.Instance.ShowCapturableOverlay)
 			{
-				if(LogConfigUpdater.LogConfigUpdateFailed)
-					MainWindow.ShowLogConfigUpdateFailedMessage().Forget();
-				else if(LogConfigUpdater.LogConfigUpdated && Game.IsRunning)
-				{
-					MainWindow.ShowMessageAsync("Hearthstone restart required", "The log.config file has been updated. HDT may not work properly until Hearthstone has been restarted.");
-					Overlay.ShowRestartRequiredWarning();
-				}
-				LogReaderManager.Start(Game);
+				Windows.CapturableOverlay = new CapturableOverlayWindow();
+				Windows.CapturableOverlay.Show();
 			}
-			else
-				MainWindow.ShowHsNotInstalledMessage().Forget();
+
+			if(LogConfigUpdater.LogConfigUpdateFailed)
+				MainWindow.ShowLogConfigUpdateFailedMessage().Forget();
+			else if(LogConfigUpdater.LogConfigUpdated && Game.IsRunning)
+			{
+				MainWindow.ShowMessageAsync("Hearthstone restart required", "The log.config file has been updated. HDT may not work properly until Hearthstone has been restarted.");
+				Overlay.ShowRestartRequiredWarning();
+			}
+			LogReaderManager.Start(Game).Forget();
 
 			NewsUpdater.UpdateAsync();
 			HotKeyManager.Load();
@@ -142,7 +146,7 @@ namespace Hearthstone_Deck_Tracker
 
 			Initialized = true;
 
-			Analytics.Analytics.TrackPageView($"/app/v{Helper.GetCurrentVersion().ToVersionString()}/{loginType.ToString().ToLower()}{(newUser ? "/new" : "")}", "");
+			Influx.OnAppStart(Helper.GetCurrentVersion(), loginType, newUser);
 		}
 
 		private static async void UpdateOverlayAsync()
@@ -151,7 +155,6 @@ namespace Hearthstone_Deck_Tracker
 				Updater.CheckForUpdates(true);
 			var hsForegroundChanged = false;
 			var useNoDeckMenuItem = TrayIcon.NotifyIcon.ContextMenu.MenuItems.IndexOfKey("startHearthstone");
-			UpdateOverlay = Helper.HearthstoneDirExists;
 			while(UpdateOverlay)
 			{
 				if(User32.GetHearthstoneWindow() != IntPtr.Zero)
@@ -172,13 +175,19 @@ namespace Hearthstone_Deck_Tracker
 						Updater.CheckForUpdates();
 
 					if(!Game.IsRunning)
+					{
 						Overlay.Update(true);
+						Windows.CapturableOverlay?.UpdateContentVisibility();
+					}
 
 					MainWindow.BtnStartHearthstone.Visibility = Visibility.Collapsed;
 					TrayIcon.NotifyIcon.ContextMenu.MenuItems[useNoDeckMenuItem].Visible = false;
 
 					Game.IsRunning = true;
-					if(User32.IsHearthstoneInForeground())
+
+					Helper.GameWindowState = User32.GetHearthstoneWindowState();
+					Windows.CapturableOverlay?.Update();
+					if(User32.IsHearthstoneInForeground() && Helper.GameWindowState != WindowState.Minimized)
 					{
 						if(hsForegroundChanged)
 						{
@@ -206,25 +215,31 @@ namespace Hearthstone_Deck_Tracker
 						hsForegroundChanged = true;
 					}
 				}
-				else
+				else if(Game.IsRunning)
 				{
-					Overlay.ShowOverlay(false);
-					if(Game.IsRunning)
-					{
-						Log.Info("Exited game");
-						Game.CurrentRegion = Region.UNKNOWN;
-						Log.Info("Reset region");
-						await Reset();
-						Game.IsInMenu = true;
-						Overlay.HideRestartRequiredWarning();
-
-						MainWindow.BtnStartHearthstone.Visibility = Visibility.Visible;
-						TrayIcon.NotifyIcon.ContextMenu.MenuItems[useNoDeckMenuItem].Visible = true;
-
-						if(Config.Instance.CloseWithHearthstone)
-							MainWindow.Close();
-					}
 					Game.IsRunning = false;
+					Overlay.ShowOverlay(false);
+					if(Windows.CapturableOverlay != null)
+					{
+						Windows.CapturableOverlay.UpdateContentVisibility();
+						await Task.Delay(100);
+						Windows.CapturableOverlay.ForcedWindowState = WindowState.Minimized;
+						Windows.CapturableOverlay.WindowState = WindowState.Minimized;
+					}
+					Log.Info("Exited game");
+					Game.CurrentRegion = Region.UNKNOWN;
+					Log.Info("Reset region");
+					await Reset();
+					Game.IsInMenu = true;
+					Game.InvalidateMatchInfoCache();
+					Overlay.HideRestartRequiredWarning();
+					TurnTimer.Instance.Stop();
+
+					MainWindow.BtnStartHearthstone.Visibility = Visibility.Visible;
+					TrayIcon.NotifyIcon.ContextMenu.MenuItems[useNoDeckMenuItem].Visible = true;
+
+					if(Config.Instance.CloseWithHearthstone)
+						MainWindow.Close();
 				}
 
 				if(Config.Instance.NetDeckClipboardCheck.HasValue && Config.Instance.NetDeckClipboardCheck.Value && Initialized
@@ -269,9 +284,9 @@ namespace Hearthstone_Deck_Tracker
 			_updateRequestsPlayer--;
 			if(_updateRequestsPlayer > 0)
 				return;
-			var cards = Game.Player.PlayerCardList;
-			Overlay.UpdatePlayerCards(cards, reset);
-			Windows.PlayerWindow.UpdatePlayerCards(cards, reset);
+			Overlay.UpdatePlayerCards(new List<Card>(Game.Player.PlayerCardList), reset);
+			if(Windows.PlayerWindow.IsVisible)
+				Windows.PlayerWindow.UpdatePlayerCards(new List<Card>(Game.Player.PlayerCardList), reset);
 		}
 
 		internal static async void UpdateOpponentCards(bool reset = false)
@@ -281,9 +296,9 @@ namespace Hearthstone_Deck_Tracker
 			_updateRequestsOpponent--;
 			if(_updateRequestsOpponent > 0)
 				return;
-			var cards = Game.Opponent.OpponentCardList;
-			Overlay.UpdateOpponentCards(cards, reset);
-			Windows.OpponentWindow.UpdateOpponentCards(cards, reset);
+			Overlay.UpdateOpponentCards(new List<Card>(Game.Opponent.OpponentCardList), reset);
+			if(Windows.OpponentWindow.IsVisible)
+				Windows.OpponentWindow.UpdateOpponentCards(new List<Card>(Game.Opponent.OpponentCardList), reset);
 		}
 
 
@@ -298,6 +313,7 @@ namespace Hearthstone_Deck_Tracker
 			public static OpponentWindow OpponentWindow => _opponentWindow ?? (_opponentWindow = new OpponentWindow(Game));
 			public static TimerWindow TimerWindow => _timerWindow ?? (_timerWindow = new TimerWindow(Config.Instance));
 			public static StatsWindow StatsWindow => _statsWindow ?? (_statsWindow = new StatsWindow());
+			public static CapturableOverlayWindow CapturableOverlay;
 		}
 	}
 }

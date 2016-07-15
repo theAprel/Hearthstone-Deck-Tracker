@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using HearthMirror.Objects;
 using Hearthstone_Deck_Tracker.Enums;
 using Hearthstone_Deck_Tracker.Enums.Hearthstone;
 using Hearthstone_Deck_Tracker.Hearthstone.Entities;
@@ -24,24 +25,18 @@ namespace Hearthstone_Deck_Tracker.Hearthstone
 		int OpponentSecretCount { get; set; }
 		bool IsRunning { get; set; }
 		Region CurrentRegion { get; set; }
-		GameMode CurrentGameMode { get; set; }
+		GameMode CurrentGameMode { get; }
 		GameStats CurrentGameStats { get; set; }
 		OpponentSecrets OpponentSecrets { get; set; }
 		List<Card> DrawnLastGame { get; set; }
-		List<Card> PossibleArenaCards { get; set; }
-		List<Card> PossibleConstructedCards { get; set; }
 		Dictionary<int, Entity> Entities { get; }
 		bool SavedReplay { get; set; }
 		GameMetaData MetaData { get; }
+		MatchInfo MatchInfo { get; }
 		Mode CurrentMode { get; set; }
 		Mode PreviousMode { get; set; }
 		GameTime GameTime { get; }
 		void Reset(bool resetStats = true);
-		void ResetArenaCards();
-		void ResetConstructedCards();
-		void NewArenaDeck(string heroId);
-		void NewArenaCard(string cardId);
-		Task GameModeDetection(int timeout);
 		void StoreGameState();
 		string GetStoredPlayerName(int id);
 	}

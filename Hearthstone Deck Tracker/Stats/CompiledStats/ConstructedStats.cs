@@ -74,9 +74,12 @@ namespace Hearthstone_Deck_Tracker.Stats.CompiledStats
 					case DisplayedTimeFrame.CustomSeason:
 						var current = Helper.CurrentSeason;
 						filtered = filtered.Where(g => g.StartTime >= new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1)
-																		.AddMonths(Config.Instance.ConstructedStatsCustomSeasonMin - current)
-													&& g.StartTime < new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1)
-																		.AddMonths(Config.Instance.ConstructedStatsCustomSeasonMax - current + 1));
+																		.AddMonths(Config.Instance.ConstructedStatsCustomSeasonMin - current));
+						if(Config.Instance.ConstructedStatsCustomSeasonMax.HasValue)
+						{
+							filtered = filtered.Where(g => g.StartTime < new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1)
+																		.AddMonths(Config.Instance.ConstructedStatsCustomSeasonMax.Value - current + 1));
+						}
 						break;
 					case DisplayedTimeFrame.ThisWeek:
 						filtered = filtered.Where(g => g.StartTime > DateTime.Today.AddDays(-((int)g.StartTime.DayOfWeek + 1)));
@@ -93,7 +96,7 @@ namespace Hearthstone_Deck_Tracker.Stats.CompiledStats
 			}
 			if(mode && Config.Instance.ConstructedStatsModeFilter != GameMode.All)
 				filtered = filtered.Where(x => x.GameMode == Config.Instance.ConstructedStatsModeFilter);
-			if(rank)
+			if(rank && Config.Instance.ConstructedStatsModeFilter == GameMode.Ranked)
 			{
 				var min = Config.Instance.ConstructedStatsRankFilterMin;
 				if(min != "L1")
@@ -102,14 +105,14 @@ namespace Hearthstone_Deck_Tracker.Stats.CompiledStats
 					if(min.StartsWith("L"))
 					{
 						if(int.TryParse(min.Substring(1), out minValue))
-							filtered = filtered.Where(x => !x.HasLegendRank ||  x.LegendRank >= minValue);
+							filtered = filtered.Where(x => !x.HasLegendRank || x.LegendRank >= minValue);
 					}
 					else if(int.TryParse(min, out minValue))
-						filtered = filtered.Where(x => !x.HasLegendRank && x.HasRank && x.Rank >= minValue);
+						filtered = filtered.Where(x => !x.HasLegendRank && (!x.HasRank || x.Rank >= minValue));
 					
 				}
 				var max = Config.Instance.ConstructedStatsRankFilterMax;
-				if(max != "25")
+				if(!string.IsNullOrEmpty(max))
 				{
 					int maxValue;
 					if(max.StartsWith("L"))
@@ -122,10 +125,10 @@ namespace Hearthstone_Deck_Tracker.Stats.CompiledStats
 					
 				}
 			}
-			//if(format && Config.Instance.ConstructedStatsFormatFilter != Format.All)
-			//{
-			//	//TODO
-			//}
+			if(format && Config.Instance.ConstructedStatsFormatFilter != Format.All
+			   && (Config.Instance.ConstructedStatsModeFilter == GameMode.Ranked
+			   || Config.Instance.ConstructedStatsModeFilter == GameMode.Casual))
+				filtered = filtered.Where(x => x.Format == Config.Instance.ConstructedStatsFormatFilter);
 			if(turns)
 			{
 				if(Config.Instance.ConstructedStatsTurnsFilterMin > 0)
@@ -175,7 +178,7 @@ namespace Hearthstone_Deck_Tracker.Stats.CompiledStats
 				var games = GetFilteredGames().ToList();
 				var wins = games.Where(x => x.Result == GameResult.Win).ToList();
 				return wins.Count > 0
-						   ? wins.Select(x => new ChartStats {Name = "Wins", Value = Math.Round(100.0 * wins.Count() / games.Count, 1)})
+						   ? wins.Select(x => new ChartStats {Name = "Wins", Value = Math.Round(100.0 * wins.Count() / games.Count)})
 						   : EmptyChartStats("Wins");
 			}
 		}
@@ -191,7 +194,7 @@ namespace Hearthstone_Deck_Tracker.Stats.CompiledStats
 				var gamesNoCoin = games.Where(x => !x.Coin);
 				var winsNoCoin = wins.Where(x => !x.Coin).ToList();
 				var total = wins.Count > 0
-								? wins.Select(x => new ChartStats {Name = "Total", Value = Math.Round(100.0 * wins.Count() / games.Count, 1)})
+								? wins.Select(x => new ChartStats {Name = "Total", Value = Math.Round(100.0 * wins.Count() / games.Count)})
 								: EmptyChartStats("Wins");
 				var coin = winsCoin.Count > 0
 								? winsCoin.Select(x => new ChartStats {Name = "With Coin", Value = 100.0 * winsCoin.Count() / gamesCoin.Count()})

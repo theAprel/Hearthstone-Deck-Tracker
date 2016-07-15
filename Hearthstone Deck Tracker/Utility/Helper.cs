@@ -9,6 +9,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
@@ -49,8 +50,6 @@ namespace Hearthstone_Deck_Tracker
 	{
 		public static double DpiScalingX = 1.0, DpiScalingY = 1.0;
 
-		public static readonly string[] EventKeys = {"None", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"};
-
 		public static readonly Dictionary<string, string> LanguageDict = new Dictionary<string, string>
 		{
 			{"English", "enUS"},
@@ -84,13 +83,11 @@ namespace Hearthstone_Deck_Tracker
 
 		public static string[] WildOnlySets = new[] { CardSet.FP1, CardSet.PE1, CardSet.PROMO, CardSet.REWARD }.Select(HearthDbConverter.SetConverter).ToArray();
 
-		private static Version _currentVersion;
-
 		private static bool? _hearthstoneDirExists;
 
-		private static readonly Regex CardLineRegexCountFirst = new Regex(@"(^(\s*)(?<count>\d)(\s*x)?\s+)(?<cardname>[\w\s'\.:!-]+)");
-		private static readonly Regex CardLineRegexCountLast = new Regex(@"(?<cardname>[\w\s'\.:!-]+)(\s+(x\s*)(?<count>\d))(\s*)$");
-		private static readonly Regex CardLineRegexCountLast2 = new Regex(@"(?<cardname>[\w\s'\.:!-]+)(\s+(?<count>\d))(\s*)$");
+		private static readonly Regex CardLineRegexCountFirst = new Regex(@"(^(\s*)(?<count>\d)(\s*x)?\s+)(?<cardname>[\w\s'\.:!-,]+)");
+		private static readonly Regex CardLineRegexCountLast = new Regex(@"(?<cardname>[\w\s'\.:!-,]+)(\s+(x\s*)(?<count>\d))(\s*)$");
+		private static readonly Regex CardLineRegexCountLast2 = new Regex(@"(?<cardname>[\w\s'\.:!-,]+)(\s+(?<count>\d))(\s*)$");
 
 		public static Dictionary<string, MediaColor> ClassicClassColors = new Dictionary<string, MediaColor>
 		{
@@ -122,12 +119,7 @@ namespace Hearthstone_Deck_Tracker
 			{"Warrior", MediaColor.FromArgb(0xFF, 0xB3, 0x20, 0x25)} //#B32025
 		};
 
-
-		[Obsolete("Use API.Core.MainWindow", true)]
-		public static MainWindow MainWindow => Core.MainWindow;
-
 		public static OptionsMain OptionsMain { get; set; }
-		public static bool SettingUpConstructedImporting { get; set; }
 
 		public static bool HearthstoneDirExists
 		{
@@ -141,26 +133,9 @@ namespace Hearthstone_Deck_Tracker
 
 		public static int CurrentSeason => (DateTime.Now.Year - 2014) * 12 - 3 + DateTime.Now.Month;
 
-		// A bug in the SerializableVersion.ToString() method causes this to load Version.xml incorrectly.
-		// The build and revision numbers are swapped (i.e. a Revision of 21 in Version.xml loads to Version.Build == 21).
-		public static Version GetCurrentVersion()
-		{
-			try
-			{
-				return _currentVersion ?? (_currentVersion = new Version(XmlManager<SerializableVersion>.Load("Version.xml").ToString()));
-			}
-			catch(Exception e)
-			{
-				Log.Error(e);
-				return null;
-			}
-		}
+		public static WindowState GameWindowState { get; internal set; } = WindowState.Normal;
 
-		public static bool IsNumeric(char c)
-		{
-			int output;
-			return int.TryParse(c.ToString(), out output);
-		}
+		public static Version GetCurrentVersion() => Assembly.GetExecutingAssembly().GetName().Version;
 
 		public static bool IsHex(IEnumerable<char> chars)
 			=> chars.All(c => ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')));
@@ -177,23 +152,6 @@ namespace Hearthstone_Deck_Tracker
 				result /= i;
 			}
 			return result;
-		}
-
-		public static PngBitmapEncoder ScreenshotDeck(ItemsControl dlv, double dpiX, double dpiY, string name)
-		{
-			try
-			{
-				var rtb = new RenderTargetBitmap((int)dlv.ActualWidth, (int)dlv.ActualHeight, dpiX, dpiY, PixelFormats.Pbgra32);
-				rtb.Render(dlv);
-
-				var encoder = new PngBitmapEncoder();
-				encoder.Frames.Add(BitmapFrame.Create(rtb));
-				return encoder;
-			}
-			catch(Exception)
-			{
-				return null;
-			}
 		}
 
 		public static string ShowSaveFileDialog(string filename, string ext)
@@ -252,21 +210,6 @@ namespace Hearthstone_Deck_Tracker
 		public static string DeckToIdString(Deck deck)
 			=> deck.GetSelectedDeckVersion().Cards.Aggregate("", (current, card) => current + (card.Id + ":" + card.Count + ";"));
 
-		[Obsolete("Use Utility.ScreenCapture.CaptureHearthstone", true)]
-		public static Bitmap CaptureHearthstone(Point point, int width, int height, IntPtr wndHandle = default(IntPtr),
-												bool requireInForeground = true) => CaptureHearthstoneAsync(point, width, height, wndHandle, requireInForeground).Result;
-
-		[Obsolete("Use Utility.ScreenCapture.CaptureHearthstoneAsync", true)]
-		public static async Task<Bitmap> CaptureHearthstoneAsync(Point point, int width, int height, IntPtr wndHandle = default(IntPtr),
-																 bool requireInForeground = true, bool? altScreenCapture = null)
-			=> await ScreenCapture.CaptureHearthstoneAsync(point, width, height, wndHandle, requireInForeground, altScreenCapture);
-
-		[Obsolete("Use Utility.ScreenCapture.CaptureWindow", true)]
-		public static Bitmap CaptureWindow(IntPtr wndHandle, Point point, int width, int height) => ScreenCapture.CaptureWindow(wndHandle, point, width, height);
-
-		[Obsolete("Use Utility.ScreenCapture.CaptureScreen", true)]
-		public static Bitmap CaptureScreen(IntPtr wndHandle, Point point, int width, int height) => ScreenCapture.CaptureScreen(wndHandle, point, width, height);
-
 		public static async Task<bool> FriendsListOpen()
 		{
 			//wait for friendslist to open/close
@@ -309,7 +252,7 @@ namespace Hearthstone_Deck_Tracker
 
 		public static void UpdateEverything(GameV2 game)
 		{
-			if(Core.Overlay.IsVisible)
+			if(Core.Overlay.IsVisible || Core.Windows.CapturableOverlay != null)
 				Core.Overlay.Update(false);
 
 			var gameStarted = !game.IsInMenu && game.Entities.Count >= 67;
@@ -362,9 +305,6 @@ namespace Hearthstone_Deck_Tracker
 			return sb.ToString();
 		}
 
-		public static string GetWinPercentString(int wins, int losses)
-			=> wins + losses == 0 ? "-%" : Math.Round(wins * 100.0 / (wins + losses), 0) + "%";
-
 		public static T DeepClone<T>(T obj)
 		{
 			using(var ms = new MemoryStream())
@@ -383,22 +323,6 @@ namespace Hearthstone_Deck_Tracker
 		{
 			long time;
 			return long.TryParse(unixTime, out time) ? FromUnixTime(time) : DateTime.Now;
-		}
-
-		public static async Task SetupConstructedImporting(GameV2 game)
-		{
-			var settings = new MessageDialogs.Settings {AffirmativeButtonText = "continue"};
-			if(!game.IsRunning)
-				await Core.MainWindow.ShowMessageAsync("Step 0:", "Start Hearthstone", settings: settings);
-			await Core.MainWindow.ShowMessageAsync("Step 1:", "Go to the main menu", settings: settings);
-			SettingUpConstructedImporting = true;
-			await
-				Core.MainWindow.ShowMessageAsync("Step 2:",
-												 "Open \"My Collection\" and click each class icon at the top once.\n\n- Do not click on neutral\n- Do not open any decks\n- Do not flip the pages.",
-												 settings: new MessageDialogs.Settings {AffirmativeButtonText = "done"});
-			Config.Instance.ConstructedImportingIgnoreCachedIds = game.PossibleConstructedCards.Select(c => c.Id).ToArray();
-			Config.Save();
-			SettingUpConstructedImporting = false;
 		}
 
 		public static Rectangle GetHearthstoneRect(bool dpiScaling) => User32.GetHearthstoneRect(dpiScaling);
@@ -556,8 +480,8 @@ namespace Hearthstone_Deck_Tracker
 						cardName = match.Groups["cardname"].Value.Trim();
 					}
 
-					var card = Database.GetCardFromName(cardName, localizedNames);
-					if(string.IsNullOrEmpty(card?.Name))
+					var card = Database.GetCardFromName(cardName.Replace("’", "'"), localizedNames);
+					if(string.IsNullOrEmpty(card?.Name) || card.Id == Database.UnknownCardId)
 						continue;
 					card.Count = count;
 
@@ -773,6 +697,16 @@ namespace Hearthstone_Deck_Tracker
 				return Region.CHINA;
 			Log.Warn("Unknown IP: " + ip);
 			return Region.UNKNOWN;
+		}
+
+		public static SolidColorBrush BrushFromHex(string hex)
+		{
+			if(hex.StartsWith("#"))
+				hex = hex.Remove(0, 1);
+			if(string.IsNullOrEmpty(hex) || hex.Length != 6 || !Helper.IsHex(hex))
+				return null;
+			var color = ColorTranslator.FromHtml("#" + hex);
+			return new SolidColorBrush(MediaColor.FromRgb(color.R, color.G, color.B));
 		}
 	}
 }

@@ -37,7 +37,8 @@ namespace Hearthstone_Deck_Tracker.Hearthstone
 			"Secret",
 			"Spellpower",
 			"Taunt",
-			"Windfury"
+			"Windfury",
+			"Stealth"
 		};
 
 		private bool _archived;
@@ -93,7 +94,7 @@ namespace Hearthstone_Deck_Tracker.Hearthstone
 
 		public Deck(string name, string className, IEnumerable<Card> cards, IEnumerable<string> tags, string note, string url,
 		            DateTime lastEdited, bool archived, List<Card> missingCards, SerializableVersion version, IEnumerable<Deck> versions,
-		            bool? syncWithHearthStats, string hearthStatsId, Guid deckId, string hearthStatsDeckVersionId,
+		            bool? syncWithHearthStats, string hearthStatsId, Guid deckId, string hearthStatsDeckVersionId, long hsId = 0,
 		            string hearthStatsIdClone = null, SerializableVersion selectedVersion = null, bool? isArenaDeck = null,
 		            ArenaReward reward = null)
 
@@ -127,6 +128,7 @@ namespace Hearthstone_Deck_Tracker.Hearthstone
 			}
 			if(reward != null)
 				_arenaReward = reward;
+			HsId = hsId;
 		}
 
 		public bool Archived
@@ -139,6 +141,8 @@ namespace Hearthstone_Deck_Tracker.Hearthstone
 				OnPropertyChanged(nameof(ArchivedVisibility));
 			}
 		}
+
+		public long HsId { get; set; }
 
 		public string Note
 		{
@@ -181,6 +185,8 @@ namespace Hearthstone_Deck_Tracker.Hearthstone
 			get { return _isArenaDeck ?? (_isArenaDeck = CheckIfArenaDeck()) ?? false; }
 			set { _isArenaDeck = value; }
 		}
+
+		public bool IsBrawlDeck => Tags.Any(x => x.ToUpper().Contains("BRAWL"));
 
 		public ArenaReward ArenaReward
 		{
@@ -342,13 +348,8 @@ namespace Hearthstone_Deck_Tracker.Hearthstone
 		{
 			get
 			{
-				var list = new List<DeckStats>(DeckStatsList.Instance.DeckStats);
-				var deckStats = list.FirstOrDefault(ds => ds.BelongsToDeck(this));
-				if(deckStats != null)
-					return deckStats;
-				deckStats = new DeckStats(this);
-				DeckStatsList.Instance.DeckStats.Add(deckStats);
-				return deckStats;
+				DeckStats deckStats;
+				return !DeckStatsList.Instance.DeckStats.TryGetValue(DeckId, out deckStats) ? DeckStatsList.Instance.Add(this) : deckStats;
 			}
 		}
 
@@ -385,7 +386,7 @@ namespace Hearthstone_Deck_Tracker.Hearthstone
 		public List<Mechanic> Mechanics => _relevantMechanics.Select(x => new Mechanic(x, this)).Where(m => m.Count > 0).ToList();
 
 		public object Clone() => new Deck(Name, Class, Cards, Tags, Note, Url, LastEdited, Archived, MissingCards, Version, Versions, SyncWithHearthStats,
-										  HearthStatsId, DeckId, HearthStatsDeckVersionId, HearthStatsIdForUploading, SelectedVersion, _isArenaDeck,
+										  HearthStatsId, DeckId, HearthStatsDeckVersionId, HsId, HearthStatsIdForUploading, SelectedVersion, _isArenaDeck,
 										  ArenaReward);
 
 		public event PropertyChangedEventHandler PropertyChanged;
@@ -463,7 +464,7 @@ namespace Hearthstone_Deck_Tracker.Hearthstone
 		public bool HasVersion(SerializableVersion version) => Version == version || Versions.Any(v => v.Version == version);
 
 		public object CloneWithNewId(bool isVersion) => new Deck(Name, Class, Cards, Tags, Note, Url, LastEdited, Archived, MissingCards, Version, Versions, SyncWithHearthStats, "",
-																 Guid.NewGuid(), HearthStatsDeckVersionId, isVersion ? HearthStatsIdForUploading : "", SelectedVersion, _isArenaDeck);
+																 Guid.NewGuid(), HearthStatsDeckVersionId, HsId, isVersion ? HearthStatsIdForUploading : "", SelectedVersion, _isArenaDeck);
 
 		public void ResetVersions()
 		{
@@ -560,6 +561,8 @@ namespace Hearthstone_Deck_Tracker.Hearthstone
 		public void StatsUpdated()
 		{
 			OnPropertyChanged(nameof(StatsString));
+			OnPropertyChanged(nameof(LastPlayed));
+			OnPropertyChanged(nameof(LastPlayedNewFirst));
 			OnPropertyChanged(nameof(WinLossString));
 			OnPropertyChanged(nameof(WinPercent));
 			OnPropertyChanged(nameof(WinPercentString));

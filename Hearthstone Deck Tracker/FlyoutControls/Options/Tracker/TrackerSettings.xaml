@@ -10,33 +10,15 @@
         <GroupBox Header="Settings">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel>
-                    <GroupBox Header="Google Analytics">
+                    <GroupBox Header="Analytics">
                         <StackPanel>
                             <CheckBox Name="CheckBoxAnalytics" Content="Submit anonymous data"
                                       Checked="CheckBoxAnalytics_OnChecked" Unchecked="CheckBoxAnalytics_OnUnchecked" />
                             <TextBlock
-                                Text="This only tracks two things: App starts, where the version number and login mode is submitted, as well as information about crashes."
+                                Text="This only tracks very basic information to help us improve HDT, like app and match starts."
                                 TextWrapping="Wrap" />
                         </StackPanel>
                     </GroupBox>
-                    <DockPanel Margin="10,5,10,0"
-                               Visibility="{Binding Visibility, Source={x:Static options:AdvancedOptions.Instance}}">
-                        <Label Content="Key on game start:" HorizontalAlignment="Right"
-                               Foreground="{Binding Color, Source={x:Static options:AdvancedOptions.Instance}}"
-                               VerticalAlignment="Top" />
-                        <ComboBox x:Name="ComboboxKeyPressGameStart" HorizontalAlignment="Right"
-                                  VerticalAlignment="Top" Width="150"
-                                  SelectionChanged="ComboboxKeyPressGameStart_SelectionChanged" />
-                    </DockPanel>
-                    <DockPanel Margin="10,5,10,0"
-                               Visibility="{Binding Visibility, Source={x:Static options:AdvancedOptions.Instance}}">
-                        <Label Content="Key on game end:" HorizontalAlignment="Left"
-                               Foreground="{Binding Color, Source={x:Static options:AdvancedOptions.Instance}}"
-                               VerticalAlignment="Top" />
-                        <ComboBox x:Name="ComboboxKeyPressGameEnd" HorizontalAlignment="Right"
-                                  VerticalAlignment="Top" Width="150"
-                                  SelectionChanged="ComboboxKeyPressGameEnd_SelectionChanged" />
-                    </DockPanel>
                     <CheckBox x:Name="CheckboxConfigSaveAppData" Content="Save config in AppData"
                               Foreground="{Binding Color, Source={x:Static options:AdvancedOptions.Instance}}"
                               Visibility="{Binding Visibility, Source={x:Static options:AdvancedOptions.Instance}}"
@@ -122,6 +104,10 @@
                             Click="ButtonOpenAppData_OnClick" />
                     <Button Name="SelectSaveDataPath" Margin="10,5,10,0" Content="set data path"
                             Click="SelectSaveDataPath_Click"
+                            Foreground="{Binding Color, Source={x:Static options:AdvancedOptions.Instance}}"
+                            Visibility="{Binding Visibility, Source={x:Static options:AdvancedOptions.Instance}}" />
+                    <Button Name="ButtonHearthstoneLogsDirectory" Margin="10,5,10,0" Content="set hearthstone log directory" 
+                            Click="ButtonHearthstoneLogsDirectory_Click"
                             Foreground="{Binding Color, Source={x:Static options:AdvancedOptions.Instance}}"
                             Visibility="{Binding Visibility, Source={x:Static options:AdvancedOptions.Instance}}" />
                     <Button Name="ButtonRestart" Margin="10,15,10,0" Content="restart hdt"
